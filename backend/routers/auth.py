@@ -47,11 +47,13 @@ def login(
     )
 
 
+
+
 @router.get(
     "/me",
     response_model=AdminResponse,
 )
-def get_me(
+def me(
     current_admin: Admin = Depends(get_current_admin),
 ) -> AdminResponse:
     return AdminResponse.model_validate(current_admin)
