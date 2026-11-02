@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+﻿from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
@@ -45,8 +45,6 @@ def login(
         access_token=access_token,
         token_type="bearer",
     )
-
-
 
 
 @router.get(

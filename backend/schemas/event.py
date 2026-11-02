@@ -1,9 +1,18 @@
+
 from datetime import date as date_type
 from datetime import datetime as datetime_type
 from datetime import time as time_type
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    model_validator,
+)
 
+
+EventStatus = Literal["upcoming", "ongoing", "completed", "cancelled"]
 
 
 class EventCreate(BaseModel):
@@ -14,7 +23,7 @@ class EventCreate(BaseModel):
     location: str | None = Field(default=None, max_length=255)
     image_url: str | None = Field(default=None, max_length=500)
     registration_url: str | None = Field(default=None, max_length=500)
-    status: str = Field(default="upcoming", max_length=20)
+    status: EventStatus = "upcoming"
     is_featured: bool = False
 
 
@@ -26,8 +35,24 @@ class EventUpdate(BaseModel):
     location: str | None = Field(default=None, max_length=255)
     image_url: str | None = Field(default=None, max_length=500)
     registration_url: str | None = Field(default=None, max_length=500)
-    status: str | None = Field(default=None, max_length=20)
+    status: EventStatus | None = None
     is_featured: bool | None = None
+
+    @model_validator(mode="after")
+    def validate_required_fields(self):
+        required_fields = (
+            "title",
+            "description",
+            "date",
+            "status",
+            "is_featured",
+        )
+
+        for field in required_fields:
+            if field in self.model_fields_set and getattr(self, field) is None:
+                raise ValueError(f"{field} cannot be null")
+
+        return self
 
 
 class EventResponse(BaseModel):
@@ -39,7 +64,7 @@ class EventResponse(BaseModel):
     location: str | None
     image_url: str | None
     registration_url: str | None
-    status: str
+    status: EventStatus
     is_featured: bool
     created_at: datetime_type
 

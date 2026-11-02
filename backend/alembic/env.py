@@ -1,22 +1,24 @@
-from logging.config import fileConfig
+﻿from logging.config import fileConfig
 import os
+from pathlib import Path
 
 from alembic import context
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, pool
 
 from database import Base
-from models.admin import Admin # noqa: F401  # pyright: ignore[reportUnusedImport]
-from models.event import Event # noqa: F401  # pyright: ignore[reportUnusedImport]
-from models.news import News # noqa: F401  # pyright: ignore[reportUnusedImport]
-from models.executive_session import ExecutiveSession # noqa: F401  # pyright: ignore[reportUnusedImport]
-from models.executive import Executive  # noqa: F401  # pyright: ignore[reportUnusedImport]
-from models.gallery import Gallery # noqa: F401  # pyright: ignore[reportUnusedImport]
-from models.resource import Resource # noqa: F401  # pyright: ignore[reportUnusedImport]
-from models.site_content import SiteContent # noqa: F401  # pyright: ignore[reportUnusedImport]
+from models.admin import Admin  # noqa: F401
+from models.event import Event  # noqa: F401
+from models.news import News  # noqa: F401
+from models.executive_session import ExecutiveSession  # noqa: F401
+from models.executive import Executive  # noqa: F401
+from models.gallery import Gallery  # noqa: F401
+from models.resource import Resource  # noqa: F401
+from models.site_content import SiteContent  # noqa: F401
 
-# Load environment variables from backend/.env
-load_dotenv()
+
+BASE_DIR = Path(__file__).resolve().parents[1]
+load_dotenv(BASE_DIR / ".env")
 
 config = context.config
 
@@ -32,12 +34,13 @@ target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
-    """Run migrations in offline mode."""
+    """Run migrations without creating a database connection."""
     context.configure(
         url=DATABASE_URL,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        compare_type=True,
     )
 
     with context.begin_transaction():
@@ -45,21 +48,24 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    """Run migrations in online mode."""
+    """Run migrations using a live database connection."""
     engine = create_engine(
         DATABASE_URL,
         poolclass=pool.NullPool,
     )
 
-    with engine.connect() as connection:
-        context.configure(
-            connection=connection,
-            target_metadata=target_metadata,
-        )
+    try:
+        with engine.connect() as connection:
+            context.configure(
+                connection=connection,
+                target_metadata=target_metadata,
+                compare_type=True,
+            )
 
-        with context.begin_transaction():
-            context.run_migrations()
-
+            with context.begin_transaction():
+                context.run_migrations()
+    finally:
+        engine.dispose()
 
 if context.is_offline_mode():
     run_migrations_offline()

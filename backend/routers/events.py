@@ -1,6 +1,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from database import get_db
@@ -15,6 +16,7 @@ router = APIRouter(
 )
 
 
+# PUBLIC: List all events
 @router.get("/", response_model=list[EventResponse])
 def list_events(
     db: Session = Depends(get_db),
@@ -23,6 +25,7 @@ def list_events(
     return db.scalars(statement).all()
 
 
+# PUBLIC: Get one event
 @router.get("/{event_id}", response_model=EventResponse)
 def get_event(
     event_id: int,
@@ -39,6 +42,7 @@ def get_event(
     return event
 
 
+# ADMIN: Create an event
 @router.post(
     "/",
     response_model=EventResponse,
@@ -52,12 +56,21 @@ def create_event(
     event = Event(**event_data.model_dump())
 
     db.add(event)
-    db.commit()
-    db.refresh(event)
+
+    try:
+        db.commit()
+        db.refresh(event)
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Event conflicts with existing data or violates database constraints",
+        ) from exc
 
     return event
 
 
+# ADMIN: Update an event
 @router.patch("/{event_id}", response_model=EventResponse)
 def update_event(
     event_id: int,
@@ -78,12 +91,20 @@ def update_event(
     for field, value in updates.items():
         setattr(event, field, value)
 
-    db.commit()
-    db.refresh(event)
+    try:
+        db.commit()
+        db.refresh(event)
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Event conflicts with existing data or violates database constraints",
+        ) from exc
 
     return event
 
 
+# ADMIN: Delete an event
 @router.delete(
     "/{event_id}",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -102,6 +123,14 @@ def delete_event(
         )
 
     db.delete(event)
-    db.commit()
+
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Event cannot be deleted because it is referenced by other records",
+        ) from exc
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
